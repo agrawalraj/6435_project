@@ -24,7 +24,7 @@ if __name__ == "__main__":
             np.save('../data/synthetic/X_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), X)
             np.save('../data/synthetic/y_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), y)
             # Exact
-            skim_model, skim_run, skim_gp, skim_time = SKIM_exact(X, y, m0, cores=2)
+            skim_model, skim_run, skim_gp, skim_time = SKIM_exact(X, y, m0)
             dump_pymc3_model('../model/exact_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), skim_run, skim_time)
             for n_induce in induce_arr:
                 # Induce + Kmeans
