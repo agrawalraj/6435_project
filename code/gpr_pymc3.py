@@ -188,42 +188,38 @@ def SKIM_GLM(X, y, m0, slab_scale=3, slab_df=25, n_iter=1000, chains=2, cores=1)
 #             print('At iteration {0} for main effects'.format(i))
 #     return mean_X_main_arr, cov_X_main_arr
 
+# N = 50
+# p = 20
+# m0 = 5
+# snr_stength = 5
+# X, y = make_simple_interaction_data(N, p, m0, snr_stength)
+# skim_model, skim_run, skim_gp, skim_time = SKIM_exact(X, y, m0, cores=2)
+# pm.summary(skim_run)
 
-N = 50
-p = 20
-m0 = 5
-snr_stength = 5
-X, y = make_simple_interaction_data(N, p, m0, snr_stength)
-skim_model, skim_run, skim_gp, skim_time = SKIM_exact(X, y, m0, cores=2)
-pm.summary(skim_run)
+# points = []
+# for point in skim_run.points():
+#     points.append(point)
 
-points = []
-for point in skim_run.points():
-    points.append(point)
-
-skim_gp.predict(X_main_effects, points[0])
-
-
-Xu, skim_model_induce, skim_run_induce, skim_gp_induce, skim_time_induce = SKIM_inducing(X, y, m0, 20, "FITC", False, cores=4)
-
-dump_pymc3_run('delete.pkl', skim_run_induce, N, p, m0)
+# skim_gp.predict(X_main_effects, points[0])
 
 
-a = main_effect_predict_SKIM(skim_run)
+# Xu, skim_model_induce, skim_run_induce, skim_gp_induce, skim_time_induce = SKIM_inducing(X, y, m0, 20, "FITC", False, cores=4)
 
-skim_model, skim_run = SKIM_FITC(X, y, m0, gp_scheme=pm.gp.MarginalSparse)
-
-
-skim_model_vfe, skim_run_vfe = SKIM_VFE(X, y, m0)
-
-N = 100
-p = 20
-m0 = 5
-snr_stength = 5
-X, y = make_simple_binary_data(N, M, m0, snr_stength)
-skim_glm_model, skim_glm_run = SKIM_GLM(X, y, m0)
-
-b = pm.summary(skim_glm_run)
+# dump_pymc3_run('delete.pkl', skim_run_induce, N, p, m0)
 
 
+# a = main_effect_predict_SKIM(skim_run)
 
+# skim_model, skim_run = SKIM_FITC(X, y, m0, gp_scheme=pm.gp.MarginalSparse)
+
+
+# skim_model_vfe, skim_run_vfe = SKIM_VFE(X, y, m0)
+
+# N = 100
+# p = 20
+# m0 = 5
+# snr_stength = 5
+# X, y = make_simple_binary_data(N, M, m0, snr_stength)
+# skim_glm_model, skim_glm_run = SKIM_GLM(X, y, m0)
+
+# b = pm.summary(skim_glm_run)
