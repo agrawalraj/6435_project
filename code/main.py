@@ -11,7 +11,7 @@ from scipy.special import expit
 from utilities import *
 from gpr_pymc3 import * 
 
-if __name__ == "main":
+if __name__ == "__main__":
     N = 200
     p_arr = [200, 500]
     m0 = 5
