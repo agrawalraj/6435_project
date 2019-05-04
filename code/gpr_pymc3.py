@@ -16,33 +16,31 @@ def square_scale_input(x, scale_vec):
 def scale_input(x, scale_vec):
     return tt.mul(x, scale_vec)
 
-def dump_pymc3_model(dump_file_name, run, run_time):
+def dump_pymc3_model(dump_file_name, run, run_time, slab_scale=3):
     output = open(dump_file_name, 'wb')
-    pickle.dump([run, run_time], output)
+    run_dict = dump_pymc3_run_helper(run, N, p, m0, slab_scale)
+    pickle.dump([run_dict, pm.summary(run), run_time], output)
     output.close()
     print('Saved PyMC3 run data in ' + dump_file_name)
 
 def load_pymc3_run(file_name):
     pkl_file = open(file_name, 'rb')
-    run, run_time = pickle.load(pkl_file)
+    run, samp_stats, run_time = pickle.load(pkl_file)
     return run, run_time
 
-def dump_pymc3_run(dump_file_name, run, N, p, m0, slab_scale=3):
+def dump_pymc3_run_helper(run, N, p, m0, slab_scale=3):
     pymc3_dict = {}
     lambda_local_scale = run['lambda_local_scale']
     pymc3_dict['sigma'] = run['sigma']
     pymc3_dict['psi'] = run['psi']
     eta_1_base = run['eta_1_base']
     m_base = run['m_base']
-    phi = (m0 / (p - m0)) * (sigma / math.sqrt(1.0 * N))
+    phi = (m0 / (p - m0)) * (pymc3_dict['sigma'] / math.sqrt(1.0 * N))
     pymc3_dict['c'] = run['c']
-    pymc3_dict['eta_1'] = phi * eta_1_base
+    pymc3_dict['eta_1'] = np.multiply(phi, eta_1_base)
     pymc3_dict['m_sq'] = slab_scale ** 2 * m_base
     pymc3_dict['kappa'] = np.sqrt(np.multiply(pymc3_dict['m_sq'], (lambda_local_scale ** 2).T) / (pymc3_dict['m_sq'] + np.multiply(pymc3_dict['eta_1'] ** 2, (lambda_local_scale ** 2).T))).T
-    output = open(dump_file_name, 'wb')
-    pickle.dump(pymc3_dict, output)
-    output.close()
-    print('Saved PyMC3 run data in ' + dump_file_name)
+    return pymc3_dict
 
 def SKIM_exact(X, y, m0, slab_scale=3, slab_df=25, n_iter=1000, chains=2):
     N, p = X.shape

@@ -84,7 +84,7 @@ def pymc3_variable_selection(X, y, mcmc_file_name, Xu=None, induce=False, sig_th
     # A really weird bug w/ pyro where have to call MCMC run
     # Load in sampled parameters 
     pkl_file = open(mcmc_file_name, 'rb')
-    mcmc_dict = pickle.load(pkl_file) 
+    mcmc_dict = pickle.load(pkl_file)[0] 
     c_samps = torch.tensor(np.sqrt(mcmc_dict['m_sq']))
     num_samps = c_samps.shape[0]
     scale_samps = torch.tensor(mcmc_dict['kappa'] ** 2)
@@ -116,7 +116,7 @@ def pymc3_prediction(X_train, y_train, X_test, mcmc_file_name, sig_thresh=2.58, 
     # A really weird bug w/ pyro where have to call MCMC run
     # Load in sampled parameters 
     pkl_file = open(mcmc_file_name, 'rb')
-    mcmc_dict = pickle.load(pkl_file) 
+    mcmc_dict = pickle.load(pkl_file)[0] 
     c_samps = torch.tensor(np.sqrt(mcmc_dict['m_sq']))
     num_samps = c_samps.shape[0]
     scale_samps = torch.tensor(mcmc_dict['kappa'] ** 2)
