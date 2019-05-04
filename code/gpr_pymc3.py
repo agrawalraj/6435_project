@@ -16,7 +16,7 @@ def square_scale_input(x, scale_vec):
 def scale_input(x, scale_vec):
     return tt.mul(x, scale_vec)
 
-def dump_pymc3_model(dump_file_name, run, run_time, slab_scale=3):
+def dump_pymc3_model(N, p, m0, dump_file_name, run, run_time, slab_scale=3):
     output = open(dump_file_name, 'wb')
     run_dict = dump_pymc3_run_helper(run, N, p, m0, slab_scale)
     pickle.dump([run_dict, pm.summary(run), run_time], output)
@@ -191,7 +191,7 @@ def SKIM_GLM(X, y, m0, slab_scale=3, slab_df=25, n_iter=1000, chains=2, cores=1)
 # m0 = 5
 # snr_stength = 5
 # X, y = make_simple_interaction_data(N, p, m0, snr_stength)
-# skim_model, skim_run, skim_gp, skim_time = SKIM_exact(X, y, m0, cores=2)
+# skim_model, skim_run, skim_gp, skim_time = SKIM_exact(X, y, m0)
 # pm.summary(skim_run)
 
 # points = []
