@@ -28,7 +28,8 @@ if __name__ == "__main__":
     else:
         print('=== Generating new dataset for N = {0}, p = {1}, snr = {2} ==='.format(N, p, snr))
         X, y = make_simple_interaction_data(N, p, m0, snr)
-
+        np.save('../data/synthetic/X_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), X)
+        np.save('../data/synthetic/y_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), y)
     if n_induce == 0:
         print('== Doing exact inference == ')
         skim_model, skim_run, skim_gp, skim_time = SKIM_exact(X, y, m0)
