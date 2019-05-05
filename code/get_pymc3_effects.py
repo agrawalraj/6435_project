@@ -13,6 +13,9 @@ from pyro.params import param_with_module_name
 from pyro.contrib.gp.kernels import Polynomial, Sum
 from utilities import get_significant_indcs
 
+import os
+import sys
+
 class ScaledPolynomialKernel(Polynomial):
     def __init__(self, input_dim, variance=None, bias=None, degree=1, active_dims=None,
                  name="ScaledPolynomial"):
@@ -112,29 +115,54 @@ def pymc3_variable_selection(X, y, mcmc_file_name, Xu=None, induce=False, sig_th
     significant_idcs = get_significant_indcs(avg_main_effects, avg_main_sds, sig_thresh)
     return (means_main_mat, sd_main_mat, significant_idcs)
 
-def pymc3_prediction(X_train, y_train, X_test, mcmc_file_name, sig_thresh=2.58, psi=1.):
-    # A really weird bug w/ pyro where have to call MCMC run
-    # Load in sampled parameters 
-    pkl_file = open(mcmc_file_name, 'rb')
-    mcmc_dict = pickle.load(pkl_file)[0] 
-    c_samps = torch.tensor(np.sqrt(mcmc_dict['m_sq']))
-    num_samps = c_samps.shape[0]
-    scale_samps = torch.tensor(mcmc_dict['kappa'] ** 2)
-    eta_base_samps = torch.tensor(mcmc_dict['psi'])
-    alpha_samps = torch.tensor(torch.zeros(num_samps)) # No quadratic effects
-    phi_samps = torch.tensor(mcmc_dict['eta_1']) j
-    psi_samps = torch.tensor(mcmc_dict['c'])
-    sigma_sq = torch.tensor(mcmc_dict['sigma'] ** 2)
-    samp_means_main = []
-    samp_vars_main = []
-    for i in range(num_samps):
-        try:
-            means, variances = gpr_predict(X_train, y_train, X_test, alpha_samps[i], eta_base_samps[i], phi_samps[i], psi_samps[i], c_samps[i], sigma_sq[i], scale_samps[i])
-            samp_means_main.append(means)
-            samp_vars_main.append(variances)
-        except:
-            print('Probably PD Error...check if error keeps coming up')
-            continue
-        if i % 100 == 0:
-            print(i)
-    return np.array(samp_means_main), np.array(samp_vars_main)
+# def pymc3_prediction(X_train, y_train, X_test, mcmc_file_name, sig_thresh=2.58, psi=1.):
+#     # A really weird bug w/ pyro where have to call MCMC run
+#     # Load in sampled parameters 
+#     pkl_file = open(mcmc_file_name, 'rb')
+#     mcmc_dict = pickle.load(pkl_file)[0] 
+#     c_samps = torch.tensor(np.sqrt(mcmc_dict['m_sq']))
+#     num_samps = c_samps.shape[0]
+#     scale_samps = torch.tensor(mcmc_dict['kappa'] ** 2)
+#     eta_base_samps = torch.tensor(mcmc_dict['psi'])
+#     alpha_samps = torch.tensor(torch.zeros(num_samps)) # No quadratic effects
+#     phi_samps = torch.tensor(mcmc_dict['eta_1']) j
+#     psi_samps = torch.tensor(mcmc_dict['c'])
+#     sigma_sq = torch.tensor(mcmc_dict['sigma'] ** 2)
+#     samp_means_main = []
+#     samp_vars_main = []
+#     for i in range(num_samps):
+#         try:
+#             means, variances = gpr_predict(X_train, y_train, X_test, alpha_samps[i], eta_base_samps[i], phi_samps[i], psi_samps[i], c_samps[i], sigma_sq[i], scale_samps[i])
+#             samp_means_main.append(means)
+#             samp_vars_main.append(variances)
+#         except:
+#             print('Probably PD Error...check if error keeps coming up')
+#             continue
+#         if i % 100 == 0:
+#             print(i)
+#     return np.array(samp_means_main), np.array(samp_vars_main)
+
+if __name__ == "__main__":
+    N = 1000
+    p = 500
+    m0 = 5
+    snr_arr = 1
+    induce_arr = [50, 100, 200, 500]
+    X = torch.tensor(np.load('../data/synthetic/X_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
+    y = torch.tensor(np.load('../data/synthetic/y_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
+    mcmc_run_path_exact = '../model/exact_N_{0}_p_{1}_scale_{2}.pkl'.format(N, p, snr)
+    mcmc_exact_params = pymc3_variable_selection(X, y, mcmc_run_path_exact, Xu=None, induce=False)
+    np.save('../summary_stats/exact_master_params_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), mcmc_exact_params)
+    print('== Finished exact ==')
+    for n_induce in induce_arr:
+        print('== Doing for n_induce = {0} =='.format(n_induce))
+        print('== Doing induce ==')
+        Xu = np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce))
+        mcmc_run_path_fitc = '../model/fitc_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
+        mcmc_induce_params = pymc3_variable_selection(X, y, mcmc_run_path_fitc, Xu=Xu, induce=True)
+        np.save('../summary_stats/fitc_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_induce_params)
+        print('== Doing subsampled ==')
+        mcmc_run_path_subsam = '../model/subsamp_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
+        mcmc_sub_params = pymc3_variable_selection(X[:n_induce, :], y[:n_induce], mcmc_run_path_subsam, Xu=None, induce=False)
+        np.save('../summary_stats/subsamp_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_sub_params)
+    
