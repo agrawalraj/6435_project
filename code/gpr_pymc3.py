@@ -26,7 +26,7 @@ def dump_pymc3_model(N, p, m0, dump_file_name, run, run_time, slab_scale=3):
 def load_pymc3_run(file_name):
     pkl_file = open(file_name, 'rb')
     run, samp_stats, run_time = pickle.load(pkl_file)
-    return run, run_time
+    return run, samp_stats, run_time
 
 def dump_pymc3_run_helper(run, N, p, m0, slab_scale=3):
     pymc3_dict = {}
