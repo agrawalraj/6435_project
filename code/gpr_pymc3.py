@@ -173,25 +173,109 @@ def SKIM_GLM(X, y, m0, slab_scale=3, slab_df=25, n_iter=1000, chains=2, cores=1)
         tot = time.time() - t0
     return model, trace, gp, tot 
 
-# def main_effect_prediction_helper(p, run, run_gp):
-#     X_main_effects = np.zeros((2 * p, p))
-#     for i in range(p):
-#         X_main_effects[2*i, i] = 1
-#         X_main_effects[2*i + 1, i] = -1
-#     mean_X_main_arr = []
-#     cov_X_main_arr = []
-#     for i, point in enumerate(run.points()):
-#         mean_X_main, cov_X_main = run_gp.predict(X_main_effects, point, diag=True)
-#         if i % 50 == 0:
-#             print('At iteration {0} for main effects'.format(i))
-#     return mean_X_main_arr, cov_X_main_arr
+def get_marginal_joint_gauss(A, mean_vec, cov_mat):
+    # y = Ax + b, x ~ MVN(mean, cov_mat)
+    new_mean = A.dot(mean_vec)[0]
+    new_cov_mat = A.dot(cov_mat.dot(A.T))[0][0]
+    return (new_mean, new_cov_mat)
 
-# N = 50
-# p = 20
+def skim_induce_gp_pred(X, y, Xu, induce, c, kappa, eta_1, m_sq, psi, sigma, alpha=0):
+    N, p = X.shape
+    alpha = 0 # No quadratic effects
+    X2 = X ** 2
+    with pm.Model() as model:
+        eta_2 = eta_1 ** 2 / m_sq * psi
+        eta_2_sq = eta_2 ** 2
+        cov1 = pm.gp.cov.Polynomial(p, c=tt.zeros(p), d=2, offset=1.0)
+        cov1_scaled = pm.gp.cov.WarpedInput(p, warp_func=scale_input, args=(kappa), cov_func=cov1) 
+        cov2 = pm.gp.cov.Polynomial(p, c=tt.zeros(p), d=1, offset=c ** 2 - .5 * eta_2_sq - 1)
+        cov2_scaled = pm.gp.cov.WarpedInput(p, warp_func=square_scale_input, args=(kappa), cov_func=cov2)
+        cov3 = pm.gp.cov.Polynomial(p, c=tt.zeros(p), d=1, offset=0)
+        cov3_scaled = pm.gp.cov.WarpedInput(p, warp_func=scale_input, args=(kappa), cov_func=cov3) 
+        cov_final = float(.5 * eta_2_sq) * cov1_scaled + float(alpha ** 2 - .5 * eta_2_sq) * cov2_scaled + float(eta_1 ** 2 - eta_2_sq) * cov3_scaled
+        if induce:
+            gp = pm.gp.MarginalSparse(cov_func=cov_final, approx=inducing_method)
+            y_ = gp.marginal_likelihood("y", X=X, Xu=Xu, y=y, noise=sigma)
+        else:
+            gp = pm.gp.Marginal(cov_func=cov_final)
+            y_ = gp.marginal_likelihood("y", X=X, y=y, noise=sigma)
+    X_main_effects = np.zeros((2*p, p))
+    for i in range(p):
+        X_main_effects[2*i, i] = 1
+        X_main_effects[2*i + 1, i] = -1
+    with model:
+        f_mean, f_cov = gp.predict(X_main_effects)
+    means = []
+    variances = []
+    for i in range(p):
+        A = np.array([[.5, -.5]])
+        param_mean, param_var = get_marginal_joint_gauss(A, f_mean[(2*i):(2*i + 2)], f_cov[(2*i):(2*i + 2), (2*i):(2*i + 2)])
+        means.append(param_mean)
+        variances.append(param_var)
+    return means, variances
+
+def get_main_effects(X, y, mcmc_file_name, Xu=None, induce=False, sig_thresh=1.96, induce_method='FITC'):
+    N, p = X.shape
+    pkl_file = open(mcmc_file_name, 'rb')
+    mcmc_dict = pickle.load(pkl_file)[0]
+    c = mcmc_dict['c']
+    kappa = mcmc_dict['kappa']
+    eta_1 = mcmc_dict['eta_1']
+    m_sq = mcmc_dict['eta_1']
+    psi = mcmc_dict['psi']
+    sigma = mcmc_dict['sigma']
+    n_samps = sigma.shape[0]
+    samp_means_main = []
+    samp_vars_main = []
+    for i in range(n_samps):
+        try:
+            pred_mean, pred_var = skim_induce_gp_pred(X, y, Xu, induce, run['c'][0], run['kappa'][0], run['eta_1'][0], run['m_sq'][0], run['psi'][0], run['sigma'][0])
+            samp_means_main.append(pred_mean)
+            samp_vars_main.append(pred_var)
+        except:
+            print('Probably PD Error...check if error keeps coming up')
+            continue
+        if i % 5 == 0:
+            print('At iteration {0} for main effects'.format(i))
+    means_main_mat = np.array(samp_means_main)
+    sd_main_mat = np.sqrt(np.array(samp_vars_main))
+    avg_main_effects = np.nanmean(means_main_mat, axis=0)
+    avg_main_sds = np.nanmean(sd_main_mat, axis=0)
+    significant_idcs = get_significant_indcs(avg_main_effects, avg_main_sds, sig_thresh)
+    return (means_main_mat, sd_main_mat, significant_idcs)
+
+if __name__ == "__main__":
+    N = 1000
+    p = 500
+    m0 = 5
+    snr = 1
+    induce_arr = [50, 100, 200, 500]
+    X = torch.tensor(np.load('../data/synthetic/X_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
+    y = torch.tensor(np.load('../data/synthetic/y_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
+    # mcmc_run_path_exact = '../model/exact_N_{0}_p_{1}_scale_{2}.pkl'.format(N, p, snr)
+    # mcmc_exact_params = get_main_effects(X, y, mcmc_run_path_exact, Xu=None, induce=False)
+    # np.save('../summary_stats/exact_master_params_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), mcmc_exact_params)
+    # print('== Finished exact ==')
+    for n_induce in induce_arr:
+        print('== Doing for n_induce = {0} =='.format(n_induce))
+        print('== Doing subsampled ==')
+        mcmc_run_path_subsam = '../model/subsamp_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
+        mcmc_sub_params = get_main_effects(X[:n_induce, :], y[:n_induce], mcmc_run_path_subsam, Xu=None, induce=False)
+        np.save('../summary_stats/subsamp_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_sub_params)
+        print('== Doing induce ==')
+        Xu = torch.tensor(np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce)))
+        mcmc_run_path_fitc = '../model/fitc_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
+        mcmc_induce_params = get_main_effects(X, y, mcmc_run_path_fitc, Xu=Xu, induce=True)
+        np.save('../summary_stats/fitc_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_induce_params)
+    
+
+
+# N = 500
+# p = 200
 # m0 = 5
-# snr_stength = 5
+# snr_stength = 2
 # X, y = make_simple_interaction_data(N, p, m0, snr_stength)
-# skim_model, skim_run, skim_gp, skim_time = SKIM_exact(X, y, m0)
+# skim_model, skim_run, skim_gp, skim_time = SKIM_exact(X, y, m0, n_iter=5)
 # pm.summary(skim_run)
 
 # points = []
@@ -201,7 +285,8 @@ def SKIM_GLM(X, y, m0, slab_scale=3, slab_df=25, n_iter=1000, chains=2, cores=1)
 # skim_gp.predict(X_main_effects, points[0])
 
 
-# Xu, skim_model_induce, skim_run_induce, skim_gp_induce, skim_time_induce = SKIM_inducing(X, y, m0, 20, "FITC", False, cores=4)
+# Xu, skim_model_induce, skim_run_induce, skim_gp_induce, skim_time_induce = SKIM_inducing(X, y, m0, 20, "FITC", False)
+
 
 # dump_pymc3_run('delete.pkl', skim_run_induce, N, p, m0)
 
