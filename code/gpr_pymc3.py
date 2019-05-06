@@ -10,6 +10,8 @@ import time
 from scipy.special import expit
 from utilities import *
 
+import sys
+
 def square_scale_input(x, scale_vec):
     return tt.mul(x, tt.mul(x, scale_vec))
 
@@ -179,7 +181,7 @@ def get_marginal_joint_gauss(A, mean_vec, cov_mat):
     new_cov_mat = A.dot(cov_mat.dot(A.T))[0][0]
     return (new_mean, new_cov_mat)
 
-def skim_induce_gp_pred(X, y, Xu, induce, c, kappa, eta_1, m_sq, psi, sigma, alpha=0):
+def skim_induce_gp_pred(X, y, Xu, induce, c, kappa, eta_1, m_sq, psi, sigma, alpha=0, induce_method='FITC'):
     N, p = X.shape
     alpha = 0 # No quadratic effects
     X2 = X ** 2
@@ -194,7 +196,7 @@ def skim_induce_gp_pred(X, y, Xu, induce, c, kappa, eta_1, m_sq, psi, sigma, alp
         cov3_scaled = pm.gp.cov.WarpedInput(p, warp_func=scale_input, args=(kappa), cov_func=cov3) 
         cov_final = float(.5 * eta_2_sq) * cov1_scaled + float(alpha ** 2 - .5 * eta_2_sq) * cov2_scaled + float(eta_1 ** 2 - eta_2_sq) * cov3_scaled
         if induce:
-            gp = pm.gp.MarginalSparse(cov_func=cov_final, approx=inducing_method)
+            gp = pm.gp.MarginalSparse(cov_func=cov_final, approx=induce_method)
             y_ = gp.marginal_likelihood("y", X=X, Xu=Xu, y=y, noise=sigma)
         else:
             gp = pm.gp.Marginal(cov_func=cov_final)
@@ -228,13 +230,13 @@ def get_main_effects(X, y, mcmc_file_name, Xu=None, induce=False, sig_thresh=1.9
     samp_means_main = []
     samp_vars_main = []
     for i in range(n_samps):
-        try:
-            pred_mean, pred_var = skim_induce_gp_pred(X, y, Xu, induce, run['c'][0], run['kappa'][0], run['eta_1'][0], run['m_sq'][0], run['psi'][0], run['sigma'][0])
-            samp_means_main.append(pred_mean)
-            samp_vars_main.append(pred_var)
-        except:
-            print('Probably PD Error...check if error keeps coming up')
-            continue
+        #try:
+        pred_mean, pred_var = skim_induce_gp_pred(X, y, Xu, induce, mcmc_dict['c'][i], mcmc_dict['kappa'][i], mcmc_dict['eta_1'][i], mcmc_dict['m_sq'][i], mcmc_dict['psi'][i], mcmc_dict['sigma'][i], induce_method='FITC')
+        samp_means_main.append(pred_mean)
+        samp_vars_main.append(pred_var)
+        # except:
+            # print('Probably PD Error...check if error keeps coming up')
+            # continue
         if i % 5 == 0:
             print('At iteration {0} for main effects'.format(i))
     means_main_mat = np.array(samp_means_main)
@@ -249,26 +251,25 @@ if __name__ == "__main__":
     p = 500
     m0 = 5
     snr = 1
-    induce_arr = [50, 100, 200, 500]
-    X = torch.tensor(np.load('../data/synthetic/X_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
-    y = torch.tensor(np.load('../data/synthetic/y_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
-    # mcmc_run_path_exact = '../model/exact_N_{0}_p_{1}_scale_{2}.pkl'.format(N, p, snr)
-    # mcmc_exact_params = get_main_effects(X, y, mcmc_run_path_exact, Xu=None, induce=False)
-    # np.save('../summary_stats/exact_master_params_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), mcmc_exact_params)
-    # print('== Finished exact ==')
-    for n_induce in induce_arr:
+    n_induce = int(sys.argv[1])
+    X = np.load('../data/synthetic/X_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr))
+    y = np.load('../data/synthetic/y_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr))
+    if n_induce == 0:
+        mcmc_run_path_exact = '../model/exact_N_{0}_p_{1}_scale_{2}.pkl'.format(N, p, snr)
+        mcmc_exact_params = get_main_effects(X, y, mcmc_run_path_exact, Xu=None, induce=False)
+        np.save('../summary_stats/exact_master_params_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), mcmc_exact_params)
+        print('== Finished exact ==')
+    else:
         print('== Doing for n_induce = {0} =='.format(n_induce))
         print('== Doing subsampled ==')
         mcmc_run_path_subsam = '../model/subsamp_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
         mcmc_sub_params = get_main_effects(X[:n_induce, :], y[:n_induce], mcmc_run_path_subsam, Xu=None, induce=False)
         np.save('../summary_stats/subsamp_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_sub_params)
         print('== Doing induce ==')
-        Xu = torch.tensor(np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce)))
+        Xu = np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce))
         mcmc_run_path_fitc = '../model/fitc_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
         mcmc_induce_params = get_main_effects(X, y, mcmc_run_path_fitc, Xu=Xu, induce=True)
         np.save('../summary_stats/fitc_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_induce_params)
-    
-
 
 # N = 500
 # p = 200
