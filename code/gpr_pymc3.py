@@ -250,7 +250,7 @@ if __name__ == "__main__":
     p = 500
     m0 = 5
     snr = 1
-    induce_arr = [50, 100, 200, 500]
+    induce_arr = [100, 200, 500]
     X = np.load('../data/synthetic/X_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr))
     y = np.load('../data/synthetic/y_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr))
     #mcmc_run_path_exact = '../model/exact_N_{0}_p_{1}_scale_{2}.pkl'.format(N, p, snr)
@@ -258,16 +258,16 @@ if __name__ == "__main__":
     #np.save('../summary_stats/exact_master_params_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), mcmc_exact_params)
     #print('== Finished exact ==')
     for n_induce in induce_arr:
-        # print('== Doing for n_induce = {0} =='.format(n_induce))
-        # print('== Doing subsampled ==')
-        # mcmc_run_path_subsam = '../model/subsamp_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
-        # mcmc_sub_params = get_main_effects(X[:n_induce, :], y[:n_induce], mcmc_run_path_subsam, Xu=None, induce=False)
-        # np.save('../summary_stats/subsamp_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_sub_params)
-        print('== Doing induce ==')
-        Xu = np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce))
-        mcmc_run_path_fitc = '../model/fitc_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
-        mcmc_induce_params = get_main_effects(X, y, mcmc_run_path_fitc, Xu=Xu, induce=True)
-        np.save('../summary_stats/fitc_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_induce_params)
+        print('== Doing for n_induce = {0} =='.format(n_induce))
+        print('== Doing subsampled ==')
+        mcmc_run_path_subsam = '../model/subsamp_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
+        mcmc_sub_params = get_main_effects(X[:n_induce, :], y[:n_induce], mcmc_run_path_subsam, Xu=None, induce=False)
+        np.save('../summary_stats/subsamp_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_sub_params)
+        # print('== Doing induce ==')
+        # Xu = np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce))
+        # mcmc_run_path_fitc = '../model/fitc_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
+        # mcmc_induce_params = get_main_effects(X, y, mcmc_run_path_fitc, Xu=Xu, induce=True)
+        # np.save('../summary_stats/fitc_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_induce_params)
 
 # N = 500
 # p = 200
