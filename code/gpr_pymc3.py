@@ -10,8 +10,6 @@ import time
 from scipy.special import expit
 from utilities import *
 
-import sys
-
 def square_scale_input(x, scale_vec):
     return tt.mul(x, tt.mul(x, scale_vec))
 
@@ -208,6 +206,7 @@ def skim_induce_gp_pred(X, y, Xu, induce, c, kappa, eta_1, m_sq, psi, sigma, alp
     with model:
         f_mean, f_cov = gp.predict(X_main_effects)
     means = []
+    model = 0 # free memory
     variances = []
     for i in range(p):
         A = np.array([[.5, -.5]])
@@ -216,7 +215,7 @@ def skim_induce_gp_pred(X, y, Xu, induce, c, kappa, eta_1, m_sq, psi, sigma, alp
         variances.append(param_var)
     return means, variances
 
-def get_main_effects(X, y, mcmc_file_name, Xu=None, induce=False, sig_thresh=1.96, induce_method='FITC'):
+def get_main_effects(X, y, mcmc_file_name, Xu=None, induce=False, sig_thresh=1.96, induce_method='FITC', thin_factor=10):
     N, p = X.shape
     pkl_file = open(mcmc_file_name, 'rb')
     mcmc_dict = pickle.load(pkl_file)[0]
@@ -229,16 +228,16 @@ def get_main_effects(X, y, mcmc_file_name, Xu=None, induce=False, sig_thresh=1.9
     n_samps = sigma.shape[0]
     samp_means_main = []
     samp_vars_main = []
-    for i in range(n_samps):
-        #try:
-        pred_mean, pred_var = skim_induce_gp_pred(X, y, Xu, induce, mcmc_dict['c'][i], mcmc_dict['kappa'][i], mcmc_dict['eta_1'][i], mcmc_dict['m_sq'][i], mcmc_dict['psi'][i], mcmc_dict['sigma'][i], induce_method='FITC')
-        samp_means_main.append(pred_mean)
-        samp_vars_main.append(pred_var)
-        # except:
-            # print('Probably PD Error...check if error keeps coming up')
-            # continue
-        if i % 5 == 0:
-            print('At iteration {0} for main effects'.format(i))
+    print('WARNING - THINNING BY A Factor {0}'.format(thin_factor))
+    for i in range(0, n_samps, thin_factor):
+        try:
+            pred_mean, pred_var = skim_induce_gp_pred(X, y, Xu, induce, mcmc_dict['c'][i], mcmc_dict['kappa'][i], mcmc_dict['eta_1'][i], mcmc_dict['m_sq'][i], mcmc_dict['psi'][i], mcmc_dict['sigma'][i], induce_method='FITC')
+            samp_means_main.append(pred_mean)
+            samp_vars_main.append(pred_var)
+        except:
+            print('Probably PD Error...check if error keeps coming up')
+            continue
+        print('At iteration {0} for main effects'.format(i))
     means_main_mat = np.array(samp_means_main)
     sd_main_mat = np.sqrt(np.array(samp_vars_main))
     avg_main_effects = np.nanmean(means_main_mat, axis=0)
@@ -251,15 +250,14 @@ if __name__ == "__main__":
     p = 500
     m0 = 5
     snr = 1
-    n_induce = int(sys.argv[1])
+    induce_arr = [50, 100, 200, 500]
     X = np.load('../data/synthetic/X_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr))
     y = np.load('../data/synthetic/y_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr))
-    if n_induce == 0:
-        mcmc_run_path_exact = '../model/exact_N_{0}_p_{1}_scale_{2}.pkl'.format(N, p, snr)
-        mcmc_exact_params = get_main_effects(X, y, mcmc_run_path_exact, Xu=None, induce=False)
-        np.save('../summary_stats/exact_master_params_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), mcmc_exact_params)
-        print('== Finished exact ==')
-    else:
+    #mcmc_run_path_exact = '../model/exact_N_{0}_p_{1}_scale_{2}.pkl'.format(N, p, snr)
+    #mcmc_exact_params = get_main_effects(X, y, mcmc_run_path_exact, Xu=None, induce=False)
+    #np.save('../summary_stats/exact_master_params_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), mcmc_exact_params)
+    #print('== Finished exact ==')
+    for n_induce in induce_arr:
         print('== Doing for n_induce = {0} =='.format(n_induce))
         print('== Doing subsampled ==')
         mcmc_run_path_subsam = '../model/subsamp_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
