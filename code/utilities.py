@@ -49,6 +49,3 @@ def make_simple_binary_data(N, M, m0, scale):
   y = np.array([np.random.binomial(1, prob) for prob in probs])
   return (X, y)
 
- 
-
-

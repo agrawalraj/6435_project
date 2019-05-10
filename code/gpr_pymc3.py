@@ -222,7 +222,7 @@ def get_main_effects(X, y, mcmc_file_name, Xu=None, induce=False, sig_thresh=1.9
     c = mcmc_dict['c']
     kappa = mcmc_dict['kappa']
     eta_1 = mcmc_dict['eta_1']
-    m_sq = mcmc_dict['eta_1']
+    m_sq = mcmc_dict['m_sq']
     psi = mcmc_dict['psi']
     sigma = mcmc_dict['sigma']
     n_samps = sigma.shape[0]
@@ -231,7 +231,7 @@ def get_main_effects(X, y, mcmc_file_name, Xu=None, induce=False, sig_thresh=1.9
     print('WARNING - THINNING BY A Factor {0}'.format(thin_factor))
     for i in range(0, n_samps, thin_factor):
         try:
-            pred_mean, pred_var = skim_induce_gp_pred(X, y, Xu, induce, mcmc_dict['c'][i], mcmc_dict['kappa'][i], mcmc_dict['eta_1'][i], mcmc_dict['m_sq'][i], mcmc_dict['psi'][i], mcmc_dict['sigma'][i], induce_method='FITC')
+            pred_mean, pred_var = skim_induce_gp_pred(X, y, Xu, induce, mcmc_dict['c'][i], mcmc_dict['kappa'][i], mcmc_dict['eta_1'][i], mcmc_dict['m_sq'][i], mcmc_dict['psi'][i], mcmc_dict['sigma'][i], induce_method=induce_method)
             samp_means_main.append(pred_mean)
             samp_vars_main.append(pred_var)
         except:
@@ -263,11 +263,11 @@ if __name__ == "__main__":
         mcmc_run_path_subsam = '../model/subsamp_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
         mcmc_sub_params = get_main_effects(X[:n_induce, :], y[:n_induce], mcmc_run_path_subsam, Xu=None, induce=False)
         np.save('../summary_stats/subsamp_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_sub_params)
-        # print('== Doing induce ==')
-        # Xu = np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce))
-        # mcmc_run_path_fitc = '../model/fitc_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
-        # mcmc_induce_params = get_main_effects(X, y, mcmc_run_path_fitc, Xu=Xu, induce=True)
-        # np.save('../summary_stats/fitc_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_induce_params)
+        print('== Doing induce ==')
+        Xu = np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce))
+        mcmc_run_path_fitc = '../model/fitc_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
+        mcmc_induce_params = get_main_effects(X, y, mcmc_run_path_fitc, Xu=Xu, induce=True)
+        np.save('../summary_stats/fitc_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_induce_params)
 
 # N = 500
 # p = 200

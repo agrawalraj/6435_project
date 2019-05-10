@@ -83,7 +83,7 @@ def gpr_predict(X_train, y_train, X_test, alpha, eta, phi, psi, c, sigma_sq, sca
     param_var = [np.float(e) for e in param_var]
     return (param_mean, param_var)
 
-def pymc3_variable_selection(X, y, mcmc_file_name, Xu=None, induce=False, sig_thresh=1.96, psi=1., induce_method='FITC'):
+def pymc3_variable_selection(X, y, mcmc_file_name, Xu=None, induce=False, sig_thresh=1.96, induce_method='FITC'):
     # A really weird bug w/ pyro where have to call MCMC run
     # Load in sampled parameters 
     pkl_file = open(mcmc_file_name, 'rb')
@@ -143,26 +143,26 @@ def pymc3_variable_selection(X, y, mcmc_file_name, Xu=None, induce=False, sig_th
 #     return np.array(samp_means_main), np.array(samp_vars_main)
 
 if __name__ == "__main__":
-    N = 1000
-    p = 500
-    m0 = 5
-    snr_arr = 1
-    induce_arr = [50, 100, 200, 500]
-    X = torch.tensor(np.load('../data/synthetic/X_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
-    y = torch.tensor(np.load('../data/synthetic/y_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
-    mcmc_run_path_exact = '../model/exact_N_{0}_p_{1}_scale_{2}.pkl'.format(N, p, snr)
-    mcmc_exact_params = pymc3_variable_selection(X, y, mcmc_run_path_exact, Xu=None, induce=False)
-    np.save('../summary_stats/exact_master_params_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), mcmc_exact_params)
-    print('== Finished exact ==')
-    for n_induce in induce_arr:
-        print('== Doing for n_induce = {0} =='.format(n_induce))
-        print('== Doing induce ==')
-        Xu = np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce))
-        mcmc_run_path_fitc = '../model/fitc_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
-        mcmc_induce_params = pymc3_variable_selection(X, y, mcmc_run_path_fitc, Xu=Xu, induce=True)
-        np.save('../summary_stats/fitc_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_induce_params)
-        print('== Doing subsampled ==')
-        mcmc_run_path_subsam = '../model/subsamp_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
-        mcmc_sub_params = pymc3_variable_selection(X[:n_induce, :], y[:n_induce], mcmc_run_path_subsam, Xu=None, induce=False)
-        np.save('../summary_stats/subsamp_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_sub_params)
+N = 1000
+p = 500
+m0 = 5
+snr = 1
+induce_arr = [50, 100, 200, 500]
+X = torch.tensor(np.load('../data/synthetic/X_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
+y = torch.tensor(np.load('../data/synthetic/y_N_{0}_p_{1}_scale_{2}.npy'.format(N, p, snr)))
+# mcmc_run_path_exact = '../model/exact_N_{0}_p_{1}_scale_{2}.pkl'.format(N, p, snr)
+# mcmc_exact_params = pymc3_variable_selection(X, y, mcmc_run_path_exact, Xu=None, induce=False)
+# np.save('../summary_stats/exact_master_params_N_{0}_p_{1}_scale_{2}'.format(N, p, snr), mcmc_exact_params)
+# print('== Finished exact ==')
+for n_induce in induce_arr:
+    print('== Doing for n_induce = {0} =='.format(n_induce))
+    print('== Doing induce ==')
+    # Xu = torch.tensor(np.load('../data/synthetic/Xu_N_{0}_p_{1}_scale_{2}_induce_{3}.npy'.format(N, p, snr, n_induce)))
+    # mcmc_run_path_fitc = '../model/fitc_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
+    # mcmc_induce_params = pymc3_variable_selection(X, y, mcmc_run_path_fitc, Xu=Xu, induce=True)
+    # np.save('../summary_stats/fitc_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_induce_params)
+    print('== Doing subsampled ==')
+    mcmc_run_path_subsam = '../model/subsamp_N_{0}_p_{1}_scale_{2}_induce_{3}.pkl'.format(N, p, snr, n_induce)
+    mcmc_sub_params = pymc3_variable_selection(X[:n_induce, :], y[:n_induce], mcmc_run_path_subsam, Xu=None, induce=False)
+    np.save('../summary_stats/subsamp_master_params_N_{0}_p_{1}_scale_{2}_induce_{3}'.format(N, p, snr, n_induce), mcmc_sub_params)
     
